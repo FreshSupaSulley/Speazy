@@ -1,2 +1,2 @@
-# ignore models
+# ignore models, we can keep native libraries tho
 *.en.bin
