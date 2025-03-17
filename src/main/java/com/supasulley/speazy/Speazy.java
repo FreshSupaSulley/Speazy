@@ -1,15 +1,9 @@
-package com.example.examplemod;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+package com.supasulley.speazy;
 
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
-import net.lingala.zip4j.ZipFile;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
@@ -30,7 +24,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 public class Speazy {
 	
 	// Define mod id in a common place for everything to reference
-	public static final String MODID = "examplemod";
+	public static final String MODID = "speazy";
 	// Directly reference a slf4j logger
 	private static final Logger LOGGER = LogUtils.getLogger();
 	
