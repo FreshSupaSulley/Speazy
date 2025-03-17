@@ -51,13 +51,16 @@ public class Transcriber extends Thread implements Runnable, SampleListener {
 		{
 			System.out.println("On Mac");
 			
-			if(osArch.contains("amd64") || osArch.contains("x86_64"))
-			{
-				resourceName = "macos-amd64";
-			}
-			else if(osArch.contains("aarch64") || osArch.contains("arm64"))
+			// osArch doesn't help for differentiating x86-64 / Arm macs
+			String trueArch = new String(new ProcessBuilder("uname", "-m").start().getInputStream().readAllBytes()).trim();
+			
+			if(trueArch.contains("x86_64"))
 			{
 				resourceName = "macos-arm64";
+			}
+			else if(trueArch.contains("arm64"))
+			{
+				resourceName = "macos-amd64";
 			}
 		}
 		else if(osName.contains("win"))
