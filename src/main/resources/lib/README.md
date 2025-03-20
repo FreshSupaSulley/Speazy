@@ -1,1 +1,0 @@
-These are native libraries WhisperJNI needs. I have only tested macos-amd64.
