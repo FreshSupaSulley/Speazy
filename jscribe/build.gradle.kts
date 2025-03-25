@@ -28,8 +28,8 @@ dependencies {
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
     implementation("org.slf4j:slf4j-api:2.0.16")
 	
-    // Use JUnit Jupiter for testing.
     testImplementation(libs.junit.jupiter)
+    testImplementation("org.slf4j:slf4j-simple:2.0.17")
     
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

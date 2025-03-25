@@ -1,12 +1,15 @@
-JAVA_HOME = /Library/Java/JavaVirtualMachines/jdk-11.jdk/Contents/Home
+# GOATED video this workflow is inspired from: https://www.youtube.com/watch?v=uuN5qkNgrkY
+
+#JAVA_HOME = /Library/Java/JavaVirtualMachines/jdk-11.jdk/Contents/Home
+JAVA_HOME = $(shell /usr/libexec/java_home)
 CONTROLLER = src/com/supasulley/macrophone/Macrophone.java
 LIB_FILE = src/main/resources/macrophone.dylib
 NATIVE_DIR = src/main/native
 
 # Build library by default
-all:
-	echo "turned off for dev"
-#all: clean buildLib
+#all:
+#	echo "turned off for dev"
+all: clean buildLib
 
 # Generate JNI header
 header:

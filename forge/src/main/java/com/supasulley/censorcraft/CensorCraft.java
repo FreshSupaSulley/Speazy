@@ -45,7 +45,6 @@ public class CensorCraft {
 	public static final Logger LOGGER = LogUtils.getLogger();
 	
 	private JScribe controller;
-	private long startTime;
 	
 	private static final int PROTOCOL_VERSION = 1;
 	private SimpleChannel channel;
@@ -79,12 +78,11 @@ public class CensorCraft {
 				
 				LOGGER.info("Received \"{}\" from {} ({})", payload, player.getName().getString(), player.getUUID());
 				
-				System.out.println(Config.Server.TABOO_TREE);
 				String taboo = Config.Server.TABOO_TREE.containsAnyIgnoreCase(payload);
 				if(taboo == null)
 					return;
 				
-				LOGGER.info("Taboo! \"{}\"", taboo);
+				LOGGER.info("Taboo said by {}: \"{}\"!", player.getName().getString(), taboo);
 				
 				// Notify all players of the sin
 				player.level().players().forEach(sample -> sample.displayClientMessage(Component.literal(player.getName().getString()).withColor(16711680).append(" said ").withColor(16777215).append("\"" + taboo + "\""), false));
@@ -94,7 +92,7 @@ public class CensorCraft {
 				{
 					// can the player survive the explosion (besides totems)?
 					// can i get rid of new ExplosionDamageCalculator()?
-					player.level().explode(null, player.level().damageSources().generic(), new ExplosionDamageCalculator(), player.getX(), player.getY(), player.getZ(), Config.Server.EXPLOSION_RADIUS, Config.Server.EXPLOSION_FIRE, Config.Server.EXPLOSION_GRIEFING ? ExplosionInteraction.TRIGGER : ExplosionInteraction.NONE);
+					player.level().explode(null, player.level().damageSources().generic(), new ExplosionDamageCalculator(), player.getX(), player.getY(), player.getZ(), Config.Server.EXPLOSION_RADIUS, Config.Server.EXPLOSION_FIRE, Config.Server.EXPLOSION_GRIEFING ? ExplosionInteraction.BLOCK : ExplosionInteraction.NONE);
 				}
 			}).add();
 		});
@@ -109,7 +107,7 @@ public class CensorCraft {
 		{
 			Path tempZip = Files.createTempFile("model", ".en.bin");
 			tempZip.toFile().deleteOnExit();
-			Files.copy(JScribe.class.getClassLoader().getResourceAsStream("ggml-tiny.en.bin"), tempZip, StandardCopyOption.REPLACE_EXISTING);
+			Files.copy(CensorCraft.class.getClassLoader().getResourceAsStream("ggml-tiny.en.bin"), tempZip, StandardCopyOption.REPLACE_EXISTING);
 			LOGGER.info("Put whisper model at {}", tempZip);
 			
 			controller = new JScribe(tempZip);
@@ -155,7 +153,6 @@ public class CensorCraft {
 		{
 			if(controller.start())
 			{
-				startTime = System.currentTimeMillis();
 				MutableComponent component = Component.literal("Now recording. ");
 				component.append(Component.literal("Watch your tone...").withColor(16711680));
 				sendToChat(component, false);
@@ -189,7 +186,8 @@ public class CensorCraft {
 	public void onLevelTick(LevelTickEvent event)
 	{
 		// This is only for client ticks
-		if(event.side != LogicalSide.CLIENT) return;
+		if(event.side != LogicalSide.CLIENT)
+			return;
 		
 		if(!controller.isRunning())
 			return;
@@ -205,22 +203,21 @@ public class CensorCraft {
 		
 		String buffer = controller.getBuffer();
 		
-		// if(!buffer.isBlank())
+		if(!buffer.isBlank())
 		{
-			// LOGGER.info("Received {}", buffer + " " + controller.getBacklog());
+			LOGGER.info("Received \"{}\" (backlog size: {})", buffer, controller.getBacklog());
+			channel.send(new WordPacket(buffer), PacketDistributor.SERVER.noArg());
 			// sendToChat(buffer + " " + controller.getBacklog(), true);
 			//
-			// String word = Config.trie.containsAnyIgnoreCase(buffer);
-			
-			if(startTime != 0 && System.currentTimeMillis() - startTime > 10000)
+			// // if(startTime != 0 && System.currentTimeMillis() - startTime > 10000)
 			// if(word != null)
-			{
-//				PacketDistributor.SERVER.direction().buildPacket(channel, new WordPacket(buffer));
-//				Minecraft.getInstance().getConnection().send(new WordPacket(buffer));
-				sendToChat("sending ", false);
-				startTime = System.currentTimeMillis();
-				channel.send(new WordPacket("boom"), PacketDistributor.SERVER.noArg());
-			}
+			// {
+			// PacketDistributor.SERVER.direction().buildPacket(channel, new WordPacket(buffer));
+			// Minecraft.getInstance().getConnection().send(new WordPacket(buffer));
+			// sendToChat("sending ", false);
+			// startTime = System.currentTimeMillis();
+			// channel.send(new WordPacket("boom"), PacketDistributor.SERVER.noArg());
+			// }
 		}
 	}
 	

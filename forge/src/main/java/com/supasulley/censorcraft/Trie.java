@@ -41,7 +41,6 @@ public class Trie {
 	 */
 	public String containsAnyIgnoreCase(String text)
 	{
-		System.out.println(list);
 		for(int i = 0; i < text.length(); i++)
 		{
 			TrieNode node = root;

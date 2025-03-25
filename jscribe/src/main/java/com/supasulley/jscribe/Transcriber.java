@@ -64,13 +64,16 @@ public class Transcriber extends Thread implements Runnable {
 			JScribe.logger.info("On Mac");
 			
 			// osArch doesn't help for differentiating x86-64 / Arm macs
-			String trueArch = new String(new ProcessBuilder("uname", "-m").start().getInputStream().readAllBytes()).trim();
+//			String trueArch = new String(new ProcessBuilder("uname", "-m").start().getInputStream().readAllBytes()).trim();
+//			JScribe.logger.info("True arch: {}", trueArch);
+			
+			String trueArch = osArch;
 			
 			if(trueArch.contains("x86_64"))
 			{
 				resourceName = "macos-amd64";
 			}
-			else if(trueArch.contains("arm64"))
+			else if(trueArch.contains("aarch64") || trueArch.contains("arm64"))
 			{
 				resourceName = "macos-arm64";
 			}

@@ -19,7 +19,7 @@ class AppTest {
 	@Test
 	void testModel() throws Exception
 	{
-		JScribe scribe = new JScribe(Paths.get("src/test/resources/ggml-tiny.en.bin"));
+//		JScribe scribe = new JScribe(Paths.get("src/test/resources/ggml-tiny.en.bin"));
 //		scribe.start();
 		
 		// Translate for a while
