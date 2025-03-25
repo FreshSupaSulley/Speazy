@@ -3,14 +3,39 @@
  */
 package org.example;
 
+import java.nio.file.Paths;
+
 import org.junit.jupiter.api.Test;
+
+import com.supasulley.jscribe.JScribe;
 
 class AppTest {
 	
+	/**
+	 * This doesn't work when running from the IDE on Mac. Thanks Tim Apple!
+	 * 
+	 * @throws Exception
+	 */
 	@Test
-	void appHasAGreeting()
+	void testModel() throws Exception
 	{
-//		App classUnderTest = new App();
-//		assertNotNull(classUnderTest.getGreeting(), "app should have a greeting");
+		JScribe scribe = new JScribe(Paths.get("src/test/resources/ggml-tiny.en.bin"));
+//		scribe.start();
+		
+		// Translate for a while
+//		Thread.sleep(30000);
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		JScribe scribe = new JScribe(Paths.get("src/test/resources/ggml-tiny.en.bin"));
+		scribe.start();
+		
+		// Translate for a while
+		while(true)
+		{
+			System.out.println("ss: " + scribe.getBuffer());
+			Thread.sleep(1000);
+		}
 	}
 }

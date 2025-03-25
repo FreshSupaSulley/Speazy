@@ -4,12 +4,14 @@ LIB_FILE = src/main/resources/macrophone.dylib
 NATIVE_DIR = src/main/native
 
 # Build library by default
-all: clean buildLib
+all:
+	echo "turned off for dev"
+#all: clean buildLib
 
 # Generate JNI header
 header:
 	mkdir -p ${NATIVE_DIR}
-	javac -h ${NATIVE_DIR} src/com/supasulley/macrophone/*.java
+	javac -h ${NATIVE_DIR} src/main/java/com/supasulley/macrophone/*.java
 
 # Generate signature for a particular class
 sig:
@@ -22,7 +24,17 @@ signatures:
 
 # Build library
 buildLib:
-	clang++ -std=c++17 -framework Cocoa -framework AVFoundation -framework CoreFoundation -fvisibility=hidden -Wall -shared -o ${LIB_FILE} ${NATIVE_DIR}/*.cpp ${NATIVE_DIR}/*.mm -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin
+	clang++ -std=c++17 -framework Cocoa -framework AVFoundation -framework Foundation -framework Speech -fvisibility=hidden -Wall -shared -o ${LIB_FILE} ${NATIVE_DIR}/*.cpp ${NATIVE_DIR}/*.mm -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin
+	# Compile C++ and Objective-C++ files (.cpp and .mm) into object files
+#	clang++ -std=c++17 -Wall -fPIC -fvisibility=hidden -framework Cocoa -framework AVFoundation -framework CoreFoundation \
+#		-c $(NATIVE_DIR)/*.cpp $(NATIVE_DIR)/*.mm -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin
+#
+#	# Compile Objective-C files (.m) into object files
+#	clang -Wall -fPIC -fvisibility=hidden -framework Speech -framework Cocoa -framework AVFoundation -framework CoreFoundation \
+#		-c $(NATIVE_DIR)/*.m -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin
+#
+#	# Link all object files together into a shared library (.dylib)
+#	clang++ -shared -o $(LIB_FILE) $(NATIVE_DIR)/*.o -framework Speech -framework Cocoa -framework AVFoundation -framework CoreFoundation
 	# Sanity checks
 	file ${LIB_FILE}
 	nm ${LIB_FILE} | grep Java

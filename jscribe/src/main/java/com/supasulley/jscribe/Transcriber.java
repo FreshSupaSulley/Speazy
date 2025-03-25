@@ -1,4 +1,4 @@
-package com.supasulley.speazy;
+package com.supasulley.jscribe;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,16 +20,31 @@ import io.github.givimad.whisperjni.WhisperJNI;
 import net.lingala.zip4j.ZipFile;
 
 /**
- * Transcriber waits for new audio samples, then processes then as fast as possible.
+ * Transcriber waits for new audio samples and processes them into text segments using {@linkplain WhisperJNI}.
  */
-public class Transcriber extends Thread implements Runnable, SampleListener {
+public class Transcriber extends Thread implements Runnable {
 	
-	private ConcurrentLinkedQueue<File> samples = new ConcurrentLinkedQueue<File>();
+	private final WhisperJNI whisper = new WhisperJNI();
+	private final ConcurrentLinkedQueue<File> samples = new ConcurrentLinkedQueue<File>();;
+	private final StringBuffer buffer = new StringBuffer();
 	
-	private final WhisperJNI whisper;
+	// Could fail
 	private final WhisperContext ctx;
+	private static final WhisperFullParams params;
 	
 	private boolean running = true;
+	
+	private long timeToTranscribe;
+	
+	static
+	{
+		// These params stay the same for each request
+		params = new WhisperFullParams();
+		params.singleSegment = true;
+		params.printProgress = false;
+		params.printTimestamps = false;
+		params.suppressNonSpeechTokens = true;
+	}
 	
 	public static void loadNatives() throws IOException
 	{
@@ -38,15 +53,15 @@ public class Transcriber extends Thread implements Runnable, SampleListener {
 		String osName = System.getProperty("os.name").toLowerCase();
 		String osArch = System.getProperty("os.arch").toLowerCase();
 		
-		System.out.println("OS: " + osName);
-		System.out.println("Arch: " + osArch);
+		JScribe.logger.info("OS: " + osName);
+		JScribe.logger.info("Arch: " + osArch);
 		
 		String resourceName = null;
 		
 		// Mac
 		if(osName.contains("mac") || osName.contains("darwin"))
 		{
-			System.out.println("On Mac");
+			JScribe.logger.info("On Mac");
 			
 			// osArch doesn't help for differentiating x86-64 / Arm macs
 			String trueArch = new String(new ProcessBuilder("uname", "-m").start().getInputStream().readAllBytes()).trim();
@@ -62,7 +77,7 @@ public class Transcriber extends Thread implements Runnable, SampleListener {
 		}
 		else if(osName.contains("win"))
 		{
-			System.out.println("On Windows");
+			JScribe.logger.info("On Windows");
 			
 			if(osArch.contains("amd64") || osArch.contains("x86_64"))
 			{
@@ -71,7 +86,7 @@ public class Transcriber extends Thread implements Runnable, SampleListener {
 		}
 		else if(osName.contains("nix") || osName.contains("nux") || osName.contains("aix"))
 		{
-			System.out.println("On Linux");
+			JScribe.logger.info("On Linux");
 			
 			if(osArch.contains("amd64") || osArch.contains("x86_64"))
 			{
@@ -92,26 +107,15 @@ public class Transcriber extends Thread implements Runnable, SampleListener {
 			throw new IllegalStateException("Native libraries not available for this OS: " + osName + ", Arch: " + osArch);
 		}
 		
-		System.out.println("Loading libraries for " + resourceName);
+		JScribe.logger.info("Loading libraries for " + resourceName);
 		
 		Stream.of(extractZipToTemp("lib/" + resourceName).listFiles()).forEach(file ->
 		{
-			System.out.println("Loading library at " + file);
+			JScribe.logger.info("Loading library at " + file);
 			System.load(file.getAbsolutePath());
 		});
 		
 		WhisperJNI.setLibraryLogger(null);
-	}
-	
-	public Transcriber(Path modelPath) throws IOException
-	{
-		this.whisper = new WhisperJNI();
-		this.ctx = whisper.init(modelPath);
-		
-		// Thread init
-		setName("Transcriber");
-		setDaemon(true);
-		start();
 	}
 	
 	private static File extractZipToTemp(String zipName) throws IOException
@@ -136,6 +140,15 @@ public class Transcriber extends Thread implements Runnable, SampleListener {
 		}
 	}
 	
+	public Transcriber(Path modelPath) throws IOException
+	{
+		this.ctx = whisper.init(modelPath);
+		
+		// Thread init
+		setName("JScribe Transcriber");
+		setDaemon(true);
+	}
+	
 	@Override
 	public void run()
 	{
@@ -145,33 +158,49 @@ public class Transcriber extends Thread implements Runnable, SampleListener {
 			if(audio == null)
 				continue;
 			
+			long startTime = System.currentTimeMillis();
+			
 			try
 			{
 				float[] samples = getSamples(audio);
 				if(samples == null)
 				{
-					System.out.println("No audio");
+					JScribe.logger.info("No audio");
 					continue;
 				}
 				
-				var params = new WhisperFullParams();
 				int result = whisper.full(ctx, params, samples, samples.length);
 				
 				if(result != 0)
 				{
-					throw new RuntimeException("Transcription failed with code " + result);
+					JScribe.logger.error("Whisper failed with code {}", result);
+					continue;
 				}
 				
 				int numSegments = whisper.fullNSegments(ctx);
 				
 				for(int i = 0; i < numSegments; i++)
 				{
-					String text = whisper.fullGetSegmentText(ctx, i).trim().replaceFirst("^>> ", "");
-					if(text.equals("[BLANK_AUDIO]"))
-						continue;
+					String text = whisper.fullGetSegmentText(ctx, i).trim();
+					// can suppress this in whisper context
+//					if(text.equals("[BLANK_AUDIO]"))
+//						continue;
 					
-					System.out.println("OUTPUT: " + text);
+					JScribe.logger.trace("Transcription: {}", text);
+					buffer.append(text);
 				}
+				
+//				try
+//				{
+//					Thread.sleep(1000);
+//				} catch(InterruptedException e)
+//				{
+//					// FIXME Auto-generated catch block
+//					e.printStackTrace();
+//				}
+				
+				timeToTranscribe = System.currentTimeMillis() - startTime;
+				JScribe.logger.trace("Took {}ms to transcribe", timeToTranscribe);
 			} catch(UnsupportedAudioFileException e)
 			{
 				e.printStackTrace();
@@ -181,14 +210,37 @@ public class Transcriber extends Thread implements Runnable, SampleListener {
 			} finally
 			{
 				// No longer need it
-//				audio.delete();
+				audio.delete();
 			}
 		}
 	}
 	
 	public void shutdown()
 	{
+		samples.clear();
 		running = false;
+	}
+	
+	public int getBacklog()
+	{
+		return samples.size();
+	}
+	
+	public long getLastTranscriptionTime()
+	{
+		return timeToTranscribe;
+	}
+	
+	/**
+	 * Gets all transcribed words and clears the buffer.
+	 * 
+	 * @return buffer of transcribed words
+	 */
+	public String getBuffer()
+	{
+		String result = buffer.toString();
+		buffer.setLength(0);
+		return result;
 	}
 	
 	// private static void convertAudio(String inputFilePath, String outputFilePath)
@@ -244,11 +296,11 @@ public class Transcriber extends Thread implements Runnable, SampleListener {
 			}
 		}
 		
-		if(!hasData) return null;
+		if(!hasData)
+			return null;
 		return samples;
 	}
 	
-	@Override
 	public void newSample(File file)
 	{
 		samples.add(file);

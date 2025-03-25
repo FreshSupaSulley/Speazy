@@ -1,10 +1,12 @@
-package com.supasulley.speazy;
+package com.supasulley.jscribe;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
@@ -20,20 +22,25 @@ public class AudioRecorder extends Thread implements Runnable {
 	/** Format Whisper wants (also means wave file) */
 	private static final AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 16000, 16, 1, 2, 16000, false);
 	private static final AudioFileFormat.Type FILE_TYPE = AudioFileFormat.Type.WAVE;
+	private static final long MAX_RECORD_TIME = 30000;
 	
-	private final SampleListener listener;
-	private final int recordTime, overlapTime;
+	private final Transcriber transcription;
 	private final File parentFolder;
+	private final long baseRecordTime, overlapTime;
 	private final AudioWriterWorker[] workers;
 	
-	private boolean running = true;
+	/** Can change based on transcription speed */
+	private long recordTime;
+	
+	private volatile boolean running = true;
 	
 	private Mixer.Info device;
 	
-	public AudioRecorder(SampleListener listener, int recordTime, int overlapTime) throws IOException
+	public AudioRecorder(Transcriber listener, String micName, long recordTime, long overlapTime) throws IOException
 	{
-		this.listener = listener;
+		this.transcription = listener;
 		this.workers = new AudioWriterWorker[5];
+		this.baseRecordTime = recordTime;
 		this.recordTime = recordTime;
 		this.overlapTime = overlapTime;
 		this.parentFolder = Files.createTempDirectory("samples").toFile();
@@ -46,35 +53,13 @@ public class AudioRecorder extends Thread implements Runnable {
 		
 		List<Mixer.Info> microphones = getMicrophones();
 		
-		System.out.println("Select a microphone:");
-		
-		for(int i = 0; i < microphones.size(); i++)
+		if(microphones.isEmpty())
 		{
-			System.out.print((i + 1) + ": ");
-			System.out.println(microphones.get(i).getName());
+			throw new IllegalStateException("No microphones detected");
 		}
 		
-		int read = 0;
-		
-//		try(Scanner scanner = new Scanner(System.in))
-//		{
-//			while(read < 1 || read > microphones.size())
-//			{
-//				String next = scanner.nextLine();
-//				
-//				try
-//				{
-//					read = Integer.parseInt(next);
-//				} catch(Exception e)
-//				{
-//					System.err.println("Invalid choice. Try again:");
-//				}
-//			}
-//		}
-//		
-//		read--;
-		this.device = microphones.get(read);
-		System.out.println("Selected " + device + " " + AudioRecorder.format.getSampleRate() + " " + AudioRecorder.format.getFrameSize());
+		this.device = microphones.stream().filter(mic -> mic.getName().equals(micName)).findFirst().orElse(microphones.getFirst());
+		JScribe.logger.info("Using microphone " + device.getName());
 	}
 	
 	public static List<Mixer.Info> getMicrophones()
@@ -106,6 +91,32 @@ public class AudioRecorder extends Thread implements Runnable {
 		{
 			if(System.currentTimeMillis() - startTime > recordTime - overlapTime)
 			{
+				long timeTook = transcription.getLastTranscriptionTime();
+				
+				// If transcription is taking longer than expected
+				if(timeTook > baseRecordTime)
+				{
+					// If its high but going down
+					/*
+					 * if(timeTook < recordTime) { long compromisedTime = (baseRecordTime + timeTook) / 2; JScribe.logger.info("Catching up to base time (" + baseRecordTime +
+					 * "ms)! Setting record time to " + compromisedTime + "ms (was " + recordTime + "ms)"); recordTime = compromisedTime; } // It's just going up else
+					 */if(timeTook > recordTime)
+					{
+						JScribe.logger.info("Transcription took {}ms of desired {}ms", timeTook, recordTime);
+						/*
+						 * The priority is to make transcription as live as possible. The more files we have on the transcription backlog, the longer we should record a sample for to
+						 * help reduce that backlog. The consequence is transcription becomes more delayed. Do not allow samples too long.
+						 */
+						recordTime = baseRecordTime + (timeTook - baseRecordTime) * transcription.getBacklog();
+						
+						if(recordTime > MAX_RECORD_TIME)
+						{
+							JScribe.logger.warn("Transcription is taking too long (exceeded {}ms cap)", MAX_RECORD_TIME);
+							recordTime = MAX_RECORD_TIME;
+						}
+					}
+				}
+				
 				startTime = System.currentTimeMillis();
 				newSample();
 			}
@@ -114,9 +125,9 @@ public class AudioRecorder extends Thread implements Runnable {
 	
 	private void newSample()
 	{
-		// Find open slot
 		boolean found = false;
 		
+		// Find open slot
 		for(int i = 0; i < workers.length; i++)
 		{
 			if(workers[i] == null || !workers[i].isAlive())
@@ -128,25 +139,15 @@ public class AudioRecorder extends Thread implements Runnable {
 		}
 		
 		if(!found)
-			throw new IllegalStateException("Failed to start new AudioWriterWorker. All slots already running");
+		{
+			JScribe.logger.error("Failed to start new AudioWriterWorker. All slots ({}) already running (good sign something is very wrong!)", workers.length);
+		}
 	}
 	
 	public void shutdown()
 	{
 		running = false;
 	}
-	
-	// @Override
-	// public void close() throws Exception
-	// {
-	// for(int i = 0; i < workers.length; i++)
-	// {
-	// workers[i].join();
-	// }
-	//
-	// model.close();
-	// recognizer.close();
-	// }
 	
 	class AudioWriterWorker extends Thread implements Runnable {
 		
@@ -157,6 +158,7 @@ public class AudioRecorder extends Thread implements Runnable {
 			try
 			{
 				this.outputFile = File.createTempFile("speazy", "." + FILE_TYPE.getExtension(), parentFolder);
+				this.outputFile.deleteOnExit();
 			} catch(IOException e)
 			{
 				throw new IllegalStateException(e);
@@ -173,17 +175,12 @@ public class AudioRecorder extends Thread implements Runnable {
 		@Override
 		public void run()
 		{
-			// JavaxMicrophone microphone = new JavaxMicrophone(selected);
-			
-			// try(TargetDataLine line = AudioSystem.getTargetDataLine(format))
 			try(TargetDataLine line = AudioSystem.getTargetDataLine(format, device))
 			{
-				// line = (TargetDataLine) mixer.getLine(new DataLine.Info(TargetDataLine.class, format));
-				// DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
-				
 				// checks if system supports the data line
 				if(!AudioSystem.isLineSupported(line.getLineInfo()))
 				{
+					JScribe.logger.error("Line not supported: {}", line.getLineInfo());
 					throw new IllegalStateException("Line not supported");
 				}
 				
@@ -193,35 +190,39 @@ public class AudioRecorder extends Thread implements Runnable {
 				line.open();
 				line.start();
 				
-				// Another thread does the writing to not choke this one, which watches it
-				Thread thread = new Thread(() ->
+				// Create an AudioInputStream from the TargetDataLine
+				// Write the audio data in chunks of 4096 bytes
+				try(AudioInputStream audioStream = new AudioInputStream(line))
 				{
-					try
+					new Timer().schedule(new TimerTask()
 					{
-						AudioSystem.write(new AudioInputStream(line), FILE_TYPE, outputFile);
-					} catch(IOException e)
-					{
-						e.printStackTrace();
-					}
-				}, "Audio Writer Worker");
-				
-				thread.setDaemon(true);
-				thread.start();
-				
-				// Record for this long
-				Thread.sleep(recordTime);
+						
+						@Override
+						public void run()
+						{
+							line.stop();
+							line.close();
+						}
+					}, recordTime);
+					
+					AudioSystem.write(audioStream, FILE_TYPE, outputFile);
+				} catch(IOException e)
+				{
+					e.printStackTrace();
+				}
 				
 				// End it
 				line.stop();
 				line.close();
-			} catch(LineUnavailableException | InterruptedException e)
+			} catch(LineUnavailableException e)
 			{
-				System.err.println("Failed to record audio to file");
-				e.printStackTrace();
+				JScribe.logger.error("Failed to record audio to file", e);
 			}
 			
+			JScribe.logger.trace("New audio sample at {}", outputFile);
+			
 			// Invoke the listener
-			listener.newSample(outputFile);
+			transcription.newSample(outputFile);
 		}
 	}
 }

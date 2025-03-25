@@ -6,11 +6,6 @@
 extern "C" {
 #endif
 
-/*
- * Class:     com_supasulley_macrophone_Macrophone
- * Method:    getMicrophonePermission
- * Signature: ()Lcom/supasulley/macrophone/Macrophone/AVAuthorizationStatus;
- */
 JNIEXPORT jobject JNICALL Java_com_supasulley_macrophone_Macrophone_getMicrophonePermission(
 		JNIEnv *env, jclass thisClass) {
 
@@ -31,11 +26,6 @@ JNIEXPORT void JNICALL Java_com_supasulley_macrophone_Macrophone_openMicrophoneS
 	openPrivacySettings();
 }
 
-/*
- * Class:     com_supasulley_macrophone_Macrophone
- * Method:    requestMicrophoneAccess
- * Signature: ()V
- */
 JNIEXPORT void JNICALL Java_com_supasulley_macrophone_Macrophone_requestMicrophoneAccess(
 		JNIEnv *env, jclass thisClass) {
 	requestMicrophoneAccess();

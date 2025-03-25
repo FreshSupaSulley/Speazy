@@ -1,4 +1,4 @@
-package com.supasulley.speazy;
+package com.supasulley.censorcraft;
 
 import java.io.File;
 

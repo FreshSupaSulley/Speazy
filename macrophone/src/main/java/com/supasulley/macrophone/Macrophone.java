@@ -61,4 +61,6 @@ public class Macrophone {
 	 *      "https://developer.apple.com/documentation/avfoundation/avcapturedevice/requestaccess(for:completionhandler:)">https://developer.apple.com/documentation/avfoundation/avcapturedevice/requestaccess(for:completionhandler:)</a>
 	 */
 	public static native void requestMicrophoneAccess();
+	
+//	public static native void startTranscribing();
 }
