@@ -21,7 +21,7 @@ public class ConfigScreen extends Screen {
 	
 	public ConfigScreen(Minecraft minecraft, Screen screen)
 	{
-		super(Component.literal("sup asshole"));
+		super(Component.literal("Configure CensorCraft"));
 		
 		this.minecraft = minecraft;
 	}
@@ -32,23 +32,28 @@ public class ConfigScreen extends Screen {
 	@Override
 	protected void init()
 	{
-		int bottom = addRenderableWidget(Checkbox.builder(Component.literal("Indicate recording"), font).tooltip(Tooltip.create(Component.literal("Displays a microphone icon indicating your microphone is being used"))).pos(PADDING, PADDING).selected(Config.Client.INDICATE_RECORDING.get()).onValueChange((button, value) ->
+		int bottom = addRenderableWidget(Checkbox.builder(Component.literal("Indicate recording"), font).tooltip(Tooltip.create(Component.literal("Displays an icon indicating your microphone is being used"))).pos(PADDING, PADDING).selected(Config.Client.INDICATE_RECORDING.get()).onValueChange((button, value) ->
 		{
 			Config.Client.INDICATE_RECORDING.set(value);
 		}).build()).getBottom();
 		
-		bottom = addRenderableWidget(Checkbox.builder(Component.literal("Show spoken text"), font).pos(PADDING, bottom + PADDING).tooltip(Tooltip.create(Component.literal("Displays live audio transcriptions when in-game"))).selected(Config.Client.SHOW_TRANSCRIPTION.get()).onValueChange((button, value) ->
+		bottom = addRenderableWidget(Checkbox.builder(Component.literal("Show spoken text"), font).pos(PADDING, bottom + PADDING).tooltip(Tooltip.create(Component.literal("Displays live audio transcriptions"))).selected(Config.Client.SHOW_TRANSCRIPTION.get()).onValueChange((button, value) ->
 		{
 			Config.Client.SHOW_TRANSCRIPTION.set(value);
 		}).build()).getBottom();
 		
+		// Close button
+		int closeButtonY = this.height - Button.DEFAULT_HEIGHT - PADDING;
+		
 		// List of microphones
-		MicrophoneList list = new MicrophoneList(PADDING, bottom + PADDING, this.width - PADDING * 2, this.height - bottom - PADDING * 2, minecraft, AudioRecorder.getMicrophones().stream().map(mic -> mic.getName()).collect(Collectors.toList()));
-//		list.setRectangle(PADDING, bottom + PADDING, this.width - PADDING * 2, this.height);
+		MicrophoneList list = new MicrophoneList(PADDING, bottom + PADDING, this.width - PADDING * 2, closeButtonY - bottom - PADDING * 2, minecraft, AudioRecorder.getMicrophones().stream().map(mic -> mic.getName()).collect(Collectors.toList()));
 		addRenderableWidget(list);
 		
-		// Close button
-		addRenderableWidget(Button.builder(Component.literal("Close"), button -> this.onClose()).bounds(this.width / 2 - Button.BIG_WIDTH / 2, this.height - 26, Button.BIG_WIDTH, Button.DEFAULT_HEIGHT).build());
+		addRenderableWidget(Button.builder(Component.literal("Close"), button ->
+		{
+			Config.Client.PREFERRED_MIC.set(list.getSelected().getMicrophoneName());
+			this.onClose();
+		}).bounds(this.width / 2 - Button.BIG_WIDTH / 2, closeButtonY, Button.BIG_WIDTH, Button.DEFAULT_HEIGHT).build());
 	}
 	
 	@Override

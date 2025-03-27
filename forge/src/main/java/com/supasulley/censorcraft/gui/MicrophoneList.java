@@ -1,6 +1,7 @@
 package com.supasulley.censorcraft.gui;
 
 import java.util.Collection;
+import java.util.List;
 
 import com.supasulley.censorcraft.Config;
 import com.supasulley.censorcraft.gui.MicrophoneList.MicrophoneEntry;
@@ -9,55 +10,70 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
 @OnlyIn(Dist.CLIENT)
 public class MicrophoneList extends ObjectSelectionList<MicrophoneEntry> {
 	
+	private static final int TEXT_PADDING = 2;
+	
 	public MicrophoneList(int x, int y, int width, int height, Minecraft minecraft, Collection<String> microphones)
 	{
-		super(minecraft, width, height, x, y);
+		// Winning the world's dumbest constructor award
+		super(minecraft, width, height, y, TEXT_PADDING * 3 + minecraft.font.lineHeight * microphones.stream().mapToInt(name -> minecraft.font.split(Component.literal(name), width).size()).max().orElseThrow());
+		setX(x);
 		
-		microphones.forEach(sample ->
-		{
-			this.addEntry(new MicrophoneEntry(sample));
-		});
+		microphones.forEach(name -> addEntry(new MicrophoneEntry(name)));
 		
 		// Select the desired, otherwise just the first one
-		setSelected(this.children().stream().filter(mic -> mic.micName.equals(Config.Client.PREFERRED_MIC.get())).findFirst().orElse(this.getFirstElement()));
+		setSelected(this.children().stream().filter(mic -> mic.component.getString().equals(Config.Client.PREFERRED_MIC.get())).findFirst().orElse(this.getFirstElement()));
 	}
 	
-	// @Override
-	// public int getRowWidth()
-	// {
-	// return this.width * 3 / 4;
-	// }
+	@Override
+	public int getRowWidth()
+	{
+		return this.width;
+	}
 	
 	@OnlyIn(Dist.CLIENT)
 	class MicrophoneEntry extends ObjectSelectionList.Entry<MicrophoneEntry> {
 		
 		private final String micName;
-//		private final MultiLineLabel label;
+		private final Component component;
+		private List<FormattedCharSequence> strings;
 		
-		private MicrophoneEntry(final String micName)
+		private MicrophoneEntry(String name)
 		{
-			this.micName = micName;
-//			this.micName = micName;
-//			label = MultiLineLabel.create(minecraft.font, Component.literal(micName));
+			this.micName = name;
+			this.component = Component.literal(name);
+			this.strings = minecraft.font.split(component, width);
+		}
+		
+		/**
+		 * @return name of the microphone
+		 */
+		public String getMicrophoneName()
+		{
+			return micName;
 		}
 		
 		@Override
-		public void render(GuiGraphics graphics, int p_282727_, int p_283089_, int p_283116_, int p_281268_, int p_283038_, int p_283070_, int p_282448_, boolean p_281417_, float p_283226_)
+		public void render(GuiGraphics guiGraphics, int entryIdx, int top, int left, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean p_194999_5_, float partialTick)
 		{
-			graphics.drawString(minecraft.font, this.micName, p_283116_, p_283089_, -1);
-//			label.renderLeftAligned(graphics, p_283116_, p_283089_ + 12, 9, -1);
+			int y = top + TEXT_PADDING;
+			for(var string : strings)
+			{
+				guiGraphics.drawString(minecraft.font, string, left + (width / 2F) - (minecraft.font.width(string) / 2F), y, 0xFFFFFF, false);
+				y += minecraft.font.lineHeight;
+			}
 		}
 		
 		@Override
 		public Component getNarration()
 		{
-			return Component.literal(micName);
+			return Component.translatable("narrator.select", component);
 		}
 	}
 }

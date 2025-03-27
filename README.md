@@ -28,3 +28,6 @@ Forge mod source. Depends on JScribe.
 Records and transcribes speech-to-text. Depends on macrophone.
 - [macrophone](./macrophone)
 Allows macOS clients to interact with the microphone.
+
+# To-Do
+Rebuild whispercpp for Vulkan support
