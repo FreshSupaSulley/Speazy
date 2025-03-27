@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 import org.junit.jupiter.api.Test;
 
 import com.supasulley.jscribe.JScribe;
+import com.supasulley.macrophone.Macrophone;
 
 class AppTest {
 	
@@ -30,7 +31,7 @@ class AppTest {
 	{
 		JScribe scribe = new JScribe(Paths.get("src/test/resources/ggml-tiny.en.bin"));
 		scribe.start();
-		
+		Macrophone.requestMicrophoneAccess();
 		// Translate for a while
 		while(true)
 		{

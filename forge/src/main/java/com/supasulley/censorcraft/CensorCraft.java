@@ -8,6 +8,7 @@ import java.nio.file.StandardCopyOption;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
+import com.supasulley.censorcraft.gui.ConfigScreen;
 import com.supasulley.jscribe.JScribe;
 
 import net.minecraft.client.Minecraft;
@@ -22,10 +23,12 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ExplosionDamageCalculator;
 import net.minecraft.world.level.Level.ExplosionInteraction;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent.LevelTickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
+import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
@@ -46,8 +49,12 @@ public class CensorCraft {
 	
 	private JScribe controller;
 	
+	// Communicate from client to server
 	private static final int PROTOCOL_VERSION = 1;
 	private SimpleChannel channel;
+	
+	// Server only
+	private Trie tabooTree;
 	
 	public CensorCraft(FMLJavaModLoadingContext context)
 	{
@@ -58,6 +65,15 @@ public class CensorCraft {
 		MinecraftForge.EVENT_BUS.register(this);
 		context.getModEventBus().addListener(this::clientSetup);
 		context.getModEventBus().addListener(this::commonSetup);
+		
+//		context.getContainer().registerExtensionPoint(IExtensionPoint.DisplayTest.class, () -> new IExtensionPoint.DisplayTest(() -> "", (remoteVersion, isFromServer) -> new ConfigScreen());
+		context.getContainer().registerExtensionPoint(ConfigScreenFactory.class, () -> new ConfigScreenFactory((minecraft, screen) -> new ConfigScreen(minecraft, screen)));
+	}
+	
+	@SubscribeEvent
+	public void serverSetup(ServerStartingEvent event)
+	{
+		tabooTree = new Trie(Config.Server.TABOO.get());
 	}
 	
 	public void commonSetup(FMLCommonSetupEvent event)
@@ -78,7 +94,7 @@ public class CensorCraft {
 				
 				LOGGER.info("Received \"{}\" from {} ({})", payload, player.getName().getString(), player.getUUID());
 				
-				String taboo = Config.Server.TABOO_TREE.containsAnyIgnoreCase(payload);
+				String taboo = tabooTree.containsAnyIgnoreCase(payload);
 				if(taboo == null)
 					return;
 				
@@ -92,7 +108,7 @@ public class CensorCraft {
 				{
 					// can the player survive the explosion (besides totems)?
 					// can i get rid of new ExplosionDamageCalculator()?
-					player.level().explode(null, player.level().damageSources().generic(), new ExplosionDamageCalculator(), player.getX(), player.getY(), player.getZ(), Config.Server.EXPLOSION_RADIUS, Config.Server.EXPLOSION_FIRE, Config.Server.EXPLOSION_GRIEFING ? ExplosionInteraction.BLOCK : ExplosionInteraction.NONE);
+					player.level().explode(null, player.level().damageSources().generic(), new ExplosionDamageCalculator(), player.getX(), player.getY(), player.getZ(), Config.Server.EXPLOSION_RADIUS.get(), Config.Server.EXPLOSION_FIRE.get(), Config.Server.EXPLOSION_GRIEFING.get() ? ExplosionInteraction.BLOCK : ExplosionInteraction.NONE);
 				}
 			}).add();
 		});
