@@ -11,10 +11,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 
-@OnlyIn(Dist.CLIENT)
 public class MicrophoneList extends ObjectSelectionList<MicrophoneEntry> {
 	
 	private static final int TEXT_PADDING = 2;
@@ -37,7 +34,6 @@ public class MicrophoneList extends ObjectSelectionList<MicrophoneEntry> {
 		return this.width;
 	}
 	
-	@OnlyIn(Dist.CLIENT)
 	class MicrophoneEntry extends ObjectSelectionList.Entry<MicrophoneEntry> {
 		
 		private final String micName;

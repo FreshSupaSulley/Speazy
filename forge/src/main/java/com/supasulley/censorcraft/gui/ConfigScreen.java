@@ -43,10 +43,11 @@ public class ConfigScreen extends Screen {
 		}).build()).getBottom();
 		
 		// Close button
-		int closeButtonY = this.height - Button.DEFAULT_HEIGHT - PADDING;
+		final int closeButtonY = this.height - Button.DEFAULT_HEIGHT - PADDING;
+		final int listWidth = this.width / 2;
 		
 		// List of microphones
-		MicrophoneList list = new MicrophoneList(PADDING, bottom + PADDING, this.width - PADDING * 2, closeButtonY - bottom - PADDING * 2, minecraft, AudioRecorder.getMicrophones().stream().map(mic -> mic.getName()).collect(Collectors.toList()));
+		MicrophoneList list = new MicrophoneList(PADDING + listWidth / 2, bottom + PADDING, listWidth - PADDING * 2, closeButtonY - bottom - PADDING * 2, minecraft, AudioRecorder.getMicrophones().stream().map(mic -> mic.getName()).collect(Collectors.toList()));
 		addRenderableWidget(list);
 		
 		addRenderableWidget(Button.builder(Component.literal("Close"), button ->

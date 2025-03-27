@@ -6,12 +6,17 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 import org.slf4j.Logger;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.mojang.logging.LogUtils;
 import com.supasulley.censorcraft.gui.ConfigScreen;
 import com.supasulley.jscribe.JScribe;
 
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.ClickEvent.Action;
@@ -68,6 +73,13 @@ public class CensorCraft {
 		
 //		context.getContainer().registerExtensionPoint(IExtensionPoint.DisplayTest.class, () -> new IExtensionPoint.DisplayTest(() -> "", (remoteVersion, isFromServer) -> new ConfigScreen());
 		context.getContainer().registerExtensionPoint(ConfigScreenFactory.class, () -> new ConfigScreenFactory((minecraft, screen) -> new ConfigScreen(minecraft, screen)));
+	}
+	
+//	@Inject(method = "renderStatusBars", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/profiler/Profiler;swap(Ljava/lang/String;)V", ordinal = 1))
+	@Inject(method = "renderEffects", at = @At(value = "HEAD"))
+	public void sus(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci)
+	{
+		guiGraphics.drawString(Minecraft.getInstance().font, Component.literal("hi there bozo"), 0, 0, 100);
 	}
 	
 	@SubscribeEvent
